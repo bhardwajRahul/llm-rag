@@ -1,8 +1,7 @@
 from typing import Literal, TypedDict
 
 from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
@@ -11,11 +10,9 @@ from rich.markdown import Markdown
 
 from llm_rag import llm, vectorstore
 
-
 decomposition_prompt_template = """You are a helpful assistant that generates multiple sub-questions related to an input question.
 The goal is to break down the input into a set of sub-problems / sub-questions that can be answered sequentially.
 Generate multiple search queries related to: {question}"""
-decomposition_prompt = ChatPromptTemplate.from_template(decomposition_prompt_template)
 
 
 recursive_prompt_template = """Here is the question you need to answer:
@@ -38,7 +35,6 @@ Use the above context and any background question + answer pairs to answer the q
 {question}
 </question>
 """
-recursive_prompt = ChatPromptTemplate.from_template(recursive_prompt_template)
 
 
 def format_qa_pair(question: str, answer: str) -> str:
@@ -70,8 +66,12 @@ def generate_sub_questions(state: State, config: RunnableConfig) -> list[str]:
     structured_llm = llm.with_structured_output(
         SubQuestionsGenerator, method="function_calling"
     )
-    chain = decomposition_prompt | structured_llm
-    response = chain.invoke(query)
+    decomposition_prompt = decomposition_prompt_template.format(question=query)
+    response = structured_llm.invoke(
+        [
+            HumanMessage(content=decomposition_prompt),
+        ]
+    )
     questions = response.sub_questions + [query]
 
     return {"all_questions": questions, "current_question_idx": 0}
@@ -84,21 +84,20 @@ def retrieve_docs(state: State):
 
 
 def generate_answer(state: State):
-    chain = recursive_prompt | llm | StrOutputParser()
-
     question = state["all_questions"][state["current_question_idx"]]
-    answer = chain.invoke(
-        {
-            "question": question,
-            "qa_pairs": state.get("qa_pairs", ""),
-            "context": state["context"],
-        }
+    recursive_prompt = recursive_prompt_template.format(
+        question=question, qa_pairs=state.get("qa_pairs", ""), context=state["context"]
     )
-    qa_pair = format_qa_pair(question, answer)
+    answer = llm.invoke(
+        [
+            HumanMessage(content=recursive_prompt),
+        ]
+    )
+    qa_pair = format_qa_pair(question, answer.content)
     qa_pairs = state.get("qa_pairs", "") + qa_pair
 
     if state["current_question_idx"] == len(state["all_questions"]) - 1:
-        return {"answer": answer}
+        return {"answer": answer.content}
     else:
         return {
             "qa_pairs": qa_pairs,

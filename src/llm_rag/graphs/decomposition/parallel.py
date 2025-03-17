@@ -2,9 +2,8 @@ import operator
 from typing import Annotated, TypedDict
 
 from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableConfig, RunnablePassthrough
+from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.constants import Send
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
@@ -17,7 +16,6 @@ from llm_rag import llm, retriever
 decomposition_prompt_template = """You are a helpful assistant that generates multiple sub-questions related to an input question.
 The goal is to break down the input into a set of sub-problems / sub-questions that can be answered sequentially.
 Generate multiple search queries related to: {question}"""
-decomposition_prompt = ChatPromptTemplate.from_template(decomposition_prompt_template)
 
 
 sub_question_prompt_template = """Answer the following question based on this context:
@@ -26,7 +24,6 @@ sub_question_prompt_template = """Answer the following question based on this co
 
 Question: {question}
 """
-sub_question_prompt = ChatPromptTemplate.from_template(sub_question_prompt_template)
 
 
 rag_prompt_template = """Here is a set of Q+A pairs:
@@ -35,7 +32,6 @@ rag_prompt_template = """Here is a set of Q+A pairs:
 
 Use these to synthesize an answer to the question: {question}
 """
-rag_prompt = ChatPromptTemplate.from_template(rag_prompt_template)
 
 
 def format_qa_pair(question: str, answer: str) -> str:
@@ -69,8 +65,8 @@ def generate_sub_questions(query: str, config: RunnableConfig) -> list[str]:
     structured_llm = llm.with_structured_output(
         SubQuestionsGenerator, method="function_calling"
     )
-    chain = decomposition_prompt | structured_llm
-    response = chain.invoke(query)
+    decomposition_prompt = decomposition_prompt_template.format(question=query)
+    response = structured_llm.invoke([HumanMessage(content=decomposition_prompt)])
     questions = response.sub_questions
 
     return {"generated_sub_questions": questions}
@@ -84,16 +80,13 @@ def assign_sub_questions(state: State):
 
 
 def answer_sub_question(state: RetrieverState):
-    chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
-        | sub_question_prompt
-        | llm
-        | StrOutputParser()
-    )
-
     question = state["generated_sub_question"]
-    answer = chain.invoke(question)
-    return {"qa_pairs": [{question: answer}]}
+    context = retriever.invoke(question)
+    sub_question_prompt = sub_question_prompt_template.format(
+        context=context, question=question
+    )
+    answer = llm.invoke([HumanMessage(content=sub_question_prompt)])
+    return {"qa_pairs": [{question: answer.content}]}
 
 
 def aggregate_qa_pairs(state: State):
@@ -107,11 +100,11 @@ def aggregate_qa_pairs(state: State):
 
 
 def generate_answer(state: State):
-    chain = rag_prompt | llm | StrOutputParser()
-    response = chain.invoke(
-        {"question": state["question"], "context": state["context"]}
+    rag_prompt = rag_prompt_template.format(
+        context=state["context"], question=state["question"]
     )
-    return {"answer": response}
+    response = llm.invoke([HumanMessage(content=rag_prompt)])
+    return {"answer": response.content}
 
 
 class ConfigSchema(BaseModel):

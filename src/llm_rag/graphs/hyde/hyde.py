@@ -2,8 +2,7 @@ from typing import TypedDict
 
 import numpy as np
 from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
@@ -16,7 +15,6 @@ from llm_rag import embeddings, llm, vectorstore
 hyde_prompt_template = """Please write a passage to answer the question
 Question: {question}
 Passage:"""
-hyde_prompt = ChatPromptTemplate.from_template(hyde_prompt_template)
 
 
 rag_prompt_template = """Answer the following question based on this context:
@@ -25,7 +23,6 @@ rag_prompt_template = """Answer the following question based on this context:
 
 Question: {question}
 """
-rag_prompt = ChatPromptTemplate.from_template(rag_prompt_template)
 
 
 def format_docs(docs):
@@ -45,12 +42,12 @@ def generate_documents(state: State, config: RunnableConfig) -> list[Document]:
         "generated_documents_count", 3
     )
 
-    chain = hyde_prompt | llm | StrOutputParser()
-    generated_documents = chain.batch(
-        [{"question": state["question"]}] * generated_documents_count
-    )
+    hyde_prompt = hyde_prompt_template.format(question=state["question"])
+    generated_documents = llm.batch([hyde_prompt] * generated_documents_count)
 
-    return {"generated_documents": generated_documents}
+    return {
+        "generated_documents": [document.content for document in generated_documents]
+    }
 
 
 def calculate_hyde_embeddings(state: State):
@@ -71,9 +68,11 @@ def get_relevant_documents(state: State):
 
 def generate_answer(state: State):
     docs_content = format_docs(state["context"])
-    chain = rag_prompt | llm | StrOutputParser()
-    response = chain.invoke({"question": state["question"], "context": docs_content})
-    return {"answer": response}
+    rag_prompt = rag_prompt_template.format(
+        context=docs_content, question=state["question"]
+    )
+    response = llm.invoke([HumanMessage(content=rag_prompt)])
+    return {"answer": response.content}
 
 
 class ConfigSchema(BaseModel):

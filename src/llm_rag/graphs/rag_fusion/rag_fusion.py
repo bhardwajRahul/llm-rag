@@ -4,8 +4,7 @@ from typing import Annotated, TypedDict
 
 from langchain_core.documents import Document
 from langchain_core.load import dumps, loads
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.constants import Send
 from langgraph.graph import END, START, StateGraph
@@ -22,7 +21,6 @@ rag_prompt_template = """Answer the following question based on this context:
 
 Question: {question}
 """
-rag_prompt = ChatPromptTemplate.from_template(rag_prompt_template)
 
 
 def reciprocal_rank_fusion(
@@ -84,7 +82,11 @@ def generate_queries(state: State, config: RunnableConfig):
     structured_llm = llm.with_structured_output(
         MultiQueryGenerator, method="function_calling"
     )
-    response = structured_llm.invoke(query)
+    response = structured_llm.invoke(
+        [
+            HumanMessage(content=query),
+        ]
+    )
     questions.extend(response.questions)
 
     return {"generated_questions": questions}
@@ -111,14 +113,15 @@ def aggregate_docs(state: State):
 
 def generate_answer(state: State):
     docs_content = format_docs(state["context"])
-    chain = rag_prompt | llm | StrOutputParser()
-    response = chain.invoke(
-        {
-            "question": state["question"],
-            "context": docs_content,
-        }
+    rag_prompt = rag_prompt_template.format(
+        question=state["question"], context=docs_content
     )
-    return {"answer": response}
+    response = llm.invoke(
+        [
+            HumanMessage(content=rag_prompt),
+        ]
+    )
+    return {"answer": response.content}
 
 
 class ConfigSchema(BaseModel):

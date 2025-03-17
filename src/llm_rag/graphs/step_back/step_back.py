@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langgraph.graph import END, START, StateGraph
 from rich import print as rprint
@@ -43,7 +43,6 @@ final_answer_prompt_template = """You are an expert of world knowledge. I am goi
 
 Original Question: {question}
 Answer:"""
-final_answer_prompt = ChatPromptTemplate.from_template(final_answer_prompt_template)
 
 
 class State(TypedDict):
@@ -61,9 +60,9 @@ def retrieve_docs(state: State):
 
 
 def generate_step_back_question(state: State):
-    chain = step_back_prompt | llm | StrOutputParser()
-    step_back_question = chain.invoke({"question": state["question"]})
-    return {"step_back_question": step_back_question}
+    step_back_prompt_messages = step_back_prompt.format(question=state["question"])
+    step_back_question = llm.invoke(step_back_prompt_messages)
+    return {"step_back_question": step_back_question.content}
 
 
 def retrieve_step_back_docs(state: State):
@@ -73,15 +72,13 @@ def retrieve_step_back_docs(state: State):
 
 
 def generate_answer(state: State):
-    chain = final_answer_prompt | llm | StrOutputParser()
-    response = chain.invoke(
-        {
-            "context": state["context"],
-            "step_back_context": state["step_back_context"],
-            "question": state["question"],
-        }
+    final_answer_prompt = final_answer_prompt_template.format(
+        context=state["context"],
+        step_back_context=state["step_back_context"],
+        question=state["question"],
     )
-    return {"answer": response}
+    response = llm.invoke([HumanMessage(content=final_answer_prompt)])
+    return {"answer": response.content}
 
 
 graph_builder = StateGraph(State)
