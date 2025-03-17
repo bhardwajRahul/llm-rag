@@ -77,7 +77,11 @@ def generate_answer(state: State):
         step_back_context=state["step_back_context"],
         question=state["question"],
     )
-    response = llm.invoke([HumanMessage(content=final_answer_prompt)])
+    response = llm.invoke(
+        [
+            HumanMessage(content=final_answer_prompt),
+        ]
+    )
     return {"answer": response.content}
 
 
