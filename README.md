@@ -1,4 +1,18 @@
 # LLM RAG
+
+## Configuration
+### Environment
+- Copy `.env.example` file to `.env`
+- Fill in the required values
+## Installation
+### Using `pip`
+- Create and activate new Python virtual environment
+- `pip install -r requirements.txt`
+- `pip install -e .`
+### Using `uv`
+- `uv sync --group dev`
+- `uv pip install -e .`
+
 ## Guides
 ### RAG From Scratch
 [YouTube Playlist](https://www.youtube.com/playlist?list=PLfaIDFEXuae2LXbO1_PKyVJiQ23ZztA0x)  
