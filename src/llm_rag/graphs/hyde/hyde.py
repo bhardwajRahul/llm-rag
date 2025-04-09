@@ -10,7 +10,8 @@ from rich import print as rprint
 from rich.markdown import Markdown
 from rich.pretty import Pretty
 
-from llm_rag import embeddings, llm, vectorstore
+from llm_rag import embeddings, llm
+from llm_rag.indexing.article import vectorstore
 
 hyde_prompt_template = """Please write a passage to answer the question
 Question: {question}
@@ -58,7 +59,7 @@ def calculate_hyde_embeddings(state: State):
     hyde_embeddings = np.vstack(
         [question_embeddings, generated_documents_embeddings]
     ).mean(axis=0)
-    return {"hyde_embeddings": hyde_embeddings}
+    return {"hyde_embeddings": list(hyde_embeddings)}
 
 
 def get_relevant_documents(state: State):
@@ -106,5 +107,5 @@ if __name__ == "__main__":
         config=config,
     )
 
-    rprint(Pretty(response, max_depth=2))
+    rprint(Pretty(response, max_depth=2, max_length=20))
     rprint(Markdown(response["answer"]))

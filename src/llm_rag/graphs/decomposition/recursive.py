@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field
 from rich import print as rprint
 from rich.markdown import Markdown
 
-from llm_rag import llm, vectorstore
+from llm_rag import llm
+from llm_rag.indexing.article import vectorstore
 
 decomposition_prompt_template = """You are a helpful assistant that generates multiple sub-questions related to an input question.
 The goal is to break down the input into a set of sub-problems / sub-questions that can be answered sequentially.
@@ -67,11 +68,7 @@ def generate_sub_questions(state: State, config: RunnableConfig) -> list[str]:
         SubQuestionsGenerator, method="function_calling"
     )
     decomposition_prompt = decomposition_prompt_template.format(question=query)
-    response = structured_llm.invoke(
-        [
-            HumanMessage(content=decomposition_prompt),
-        ]
-    )
+    response = structured_llm.invoke([HumanMessage(content=decomposition_prompt)])
     questions = response.sub_questions + [query]
 
     return {"all_questions": questions, "current_question_idx": 0}
@@ -88,11 +85,7 @@ def generate_answer(state: State):
     recursive_prompt = recursive_prompt_template.format(
         question=question, qa_pairs=state.get("qa_pairs", ""), context=state["context"]
     )
-    answer = llm.invoke(
-        [
-            HumanMessage(content=recursive_prompt),
-        ]
-    )
+    answer = llm.invoke([HumanMessage(content=recursive_prompt)])
     qa_pair = format_qa_pair(question, answer.content)
     qa_pairs = state.get("qa_pairs", "") + qa_pair
 

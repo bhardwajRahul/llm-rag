@@ -4,11 +4,11 @@ from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, FewShotChatMessagePromptTemplate
 from langgraph.graph import END, START, StateGraph
+from llm_rag import llm
+from llm_rag.indexing.article import vectorstore
 from rich import print as rprint
 from rich.markdown import Markdown
 from rich.pretty import Pretty
-
-from llm_rag import llm, vectorstore
 
 step_back_prompt_template = "You are an expert at world knowledge. Your task is to step back and paraphrase a question to a more generic step-back question, which is easier to answer. Here are a few examples:"
 examples = [
@@ -77,11 +77,7 @@ def generate_answer(state: State):
         step_back_context=state["step_back_context"],
         question=state["question"],
     )
-    response = llm.invoke(
-        [
-            HumanMessage(content=final_answer_prompt),
-        ]
-    )
+    response = llm.invoke([HumanMessage(content=final_answer_prompt)])
     return {"answer": response.content}
 
 

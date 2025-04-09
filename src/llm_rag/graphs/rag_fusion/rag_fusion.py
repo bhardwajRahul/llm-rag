@@ -13,7 +13,8 @@ from rich import print as rprint
 from rich.markdown import Markdown
 from rich.pretty import Pretty
 
-from llm_rag import llm, vectorstore
+from llm_rag import llm
+from llm_rag.indexing.article import vectorstore
 
 rag_prompt_template = """Answer the following question based on this context:
 
@@ -82,11 +83,7 @@ def generate_queries(state: State, config: RunnableConfig):
     structured_llm = llm.with_structured_output(
         MultiQueryGenerator, method="function_calling"
     )
-    response = structured_llm.invoke(
-        [
-            HumanMessage(content=query),
-        ]
-    )
+    response = structured_llm.invoke(query)
     questions.extend(response.questions)
 
     return {"generated_questions": questions}
@@ -116,11 +113,7 @@ def generate_answer(state: State):
     rag_prompt = rag_prompt_template.format(
         question=state["question"], context=docs_content
     )
-    response = llm.invoke(
-        [
-            HumanMessage(content=rag_prompt),
-        ]
-    )
+    response = llm.invoke([HumanMessage(content=rag_prompt)])
     return {"answer": response.content}
 
 

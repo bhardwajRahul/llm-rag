@@ -6,12 +6,12 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.constants import Send
 from langgraph.graph import END, START, StateGraph
+from llm_rag import llm
+from llm_rag.indexing.article import retriever
 from pydantic import BaseModel, Field
 from rich import print as rprint
 from rich.markdown import Markdown
 from rich.pretty import Pretty
-
-from llm_rag import llm, retriever
 
 decomposition_prompt_template = """You are a helpful assistant that generates multiple sub-questions related to an input question.
 The goal is to break down the input into a set of sub-problems / sub-questions that can be answered sequentially.
