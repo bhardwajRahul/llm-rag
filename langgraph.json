@@ -14,7 +14,9 @@
     "Query Construction - Self-Query": "src/llm_rag/graphs/query_construction/self_query.py:graph",
     "Indexing - Multi-Vector - Summary": "src/llm_rag/graphs/multi_vector/summary.py:graph",
     "Indexing - Multi-Vector - Chunks": "src/llm_rag/graphs/multi_vector/chunks.py:graph",
-    "Indexing - Multi-Vector - Hypothetical Questions": "src/llm_rag/graphs/multi_vector/hypothetical_questions.py:graph"
+    "Indexing - Multi-Vector - Hypothetical Questions": "src/llm_rag/graphs/multi_vector/hypothetical_questions.py:graph",
+    "Retrieval - CRAG": "src/llm_rag/graphs/crag/crag.py:graph",
+    "Generation - Self-RAG": "src/llm_rag/graphs/self_rag/self_rag.py:graph"
   },
   "env": "./.env",
   "dockerfile_lines": []

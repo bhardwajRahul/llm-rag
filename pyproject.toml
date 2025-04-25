@@ -9,7 +9,7 @@ dependencies = [
     "langchain-community>=0.3.18",
     "langchain-openai>=0.3.7",
     "langchain-weaviate>=0.0.4",
-    "langgraph>=0.2.74",
+    "langgraph==0.3.31",
     "langgraph-cli[inmem]>=0.1.74",
     "lark>=1.2.2",
     "pandas>=2.2.3",
